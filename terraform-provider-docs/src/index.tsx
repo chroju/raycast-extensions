@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { ActionPanel, Icon, Action, Color, List, Detail, Cache, Image, showToast, Toast } from "@raycast/api";
+import { ActionPanel, Icon, Action, Color, List, Cache, Image, showToast, Toast } from "@raycast/api";
 import { TerraformElement, TerraformElementType, getTerraformDocURL } from "./helpers/terraform";
 import { fetchTerraformElements } from "./api/github";
-import { useFetch } from "@raycast/utils";
+import { DocDetail } from "./components/DocDetail";
 
 const cache = new Cache();
 const cacheKey = "chroju-terraform-docs-cache";
@@ -79,7 +79,7 @@ export default function Command() {
             actions={
               <ActionPanel>
                 <ActionPanel.Section>
-                  <Action.Push title="Show Document" icon={Icon.Document} target={<DetailDoc item={item} />} />
+                  <Action.Push title="Show Document" icon={Icon.Document} target={<DocDetail element={item} />} />
                   <Action.OpenInBrowser title="Open in Browser" url={`${getTerraformDocURL(item)}`} />
                   <Action.CopyToClipboard
                     title={`Copy ${item.type} Name`}
@@ -102,21 +102,5 @@ export default function Command() {
         />
       )}
     </List>
-  );
-}
-
-function DetailDoc(props: { item: TerraformElement }) {
-  const rawDocUrl = props.item.rawDocUrl || "";
-  const { isLoading, data } = useFetch(rawDocUrl, {
-    keepPreviousData: true,
-  });
-
-  return (
-    <Detail
-      isLoading={isLoading}
-      // remove frontmatter
-      markdown={((data as string) || "").replace(/---[\s\S]*?---\n/g, "")}
-      navigationTitle={`${props.item.provider.name}_${props.item.name}`}
-    />
   );
 }
