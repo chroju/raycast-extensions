@@ -1,6 +1,7 @@
 import { showToast, Toast } from "@raycast/api";
 import { TerraformElement, TerraformElementType, TerraformProvider } from "../helpers/terraform";
 import { getTerraformGitHubContentsURL } from "../helpers/terraform";
+import fetch from "node-fetch";
 
 interface GitHubLinks {
   self: string;

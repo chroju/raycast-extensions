@@ -41,9 +41,11 @@ export default function Command() {
         } as cacheStructure),
       );
     }
+    setIsLoading(false);
   };
 
   const reload = (providerNames: string[]) => {
+    setIsLoading(true);
     fetchData(providerNames);
     showToast({ style: Toast.Style.Success, title: "Reloaded", message: "Successfully reloaded" });
   };
@@ -59,7 +61,6 @@ export default function Command() {
       setIsLoading(false);
     } else {
       fetchData(providerNames.split(","));
-      setIsLoading(false);
     }
   }, []);
 
