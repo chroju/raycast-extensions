@@ -1,6 +1,13 @@
 import fetch from "node-fetch";
 import { useEffect, useState } from "react";
 import { ActionPanel, Icon, Action, Color, List, Detail, Cache, Image, showToast, Toast } from "@raycast/api";
+import {
+  TerraformElement,
+  TerraformElementType,
+  TerraformProvider,
+  getTerraformDocURL,
+  getTerraformGitHubContentsURL,
+} from "./helpers/terraform";
 import { useFetch } from "@raycast/utils";
 
 const cache = new Cache();
@@ -17,11 +24,6 @@ interface GitHubLinks {
   self: string;
   git: string;
   html: string;
-}
-
-enum TerraformElementType {
-  Resource = "Resource",
-  DataSource = "Data Source",
 }
 
 const icons: { [key in TerraformElementType]: Image.ImageLike } = {
@@ -52,42 +54,6 @@ interface GitHubTagInfo {
   };
   node_id: string;
 }
-
-interface TerraformProvider {
-  owner: string;
-  name: string;
-  version?: string;
-  isOldDocsPaths: boolean;
-}
-
-interface TerraformElement {
-  name: string;
-  type: TerraformElementType;
-  provider: TerraformProvider;
-  rawDocUrl?: string;
-}
-
-interface TerraformDocsPaths {
-  parentDir: string;
-  resourceDir: string;
-  dataSourceDir: string;
-  suffix: string;
-}
-
-const terraformDocsPathsSpec: { old: TerraformDocsPaths; new: TerraformDocsPaths } = {
-  old: {
-    parentDir: "website/docs",
-    resourceDir: "r",
-    dataSourceDir: "d",
-    suffix: ".html.markdown",
-  },
-  new: {
-    parentDir: "docs",
-    resourceDir: "resources",
-    dataSourceDir: "data-sources",
-    suffix: ".md",
-  },
-};
 
 export default function Command() {
   const [items, setItems] = useState<TerraformElement[]>([]);
@@ -150,7 +116,7 @@ export default function Command() {
               <ActionPanel>
                 <ActionPanel.Section>
                   <Action.Push title="Show Document" icon={Icon.Document} target={<DetailDoc item={item} />} />
-                  <Action.OpenInBrowser title="Open in Browser" url={`${generateTFDocsURL(item)}`} />
+                  <Action.OpenInBrowser title="Open in Browser" url={`${getTerraformDocURL(item)}`} />
                   <Action.CopyToClipboard
                     title={`Copy ${item.type} Name`}
                     content={`${item.provider.name}_${item.name}`}
@@ -174,26 +140,6 @@ export default function Command() {
     </List>
   );
 }
-
-const generateTFGitHubURL = (item: TerraformProvider, type: TerraformElementType): string => {
-  const { owner, name, isOldDocsPaths } = item;
-  const pathSpec = isOldDocsPaths ? "old" : "new";
-  const dir =
-    type === TerraformElementType.Resource
-      ? terraformDocsPathsSpec[pathSpec].resourceDir
-      : terraformDocsPathsSpec[pathSpec].dataSourceDir;
-
-  return `https://api.github.com/repos/${owner}/terraform-provider-${name}/contents/${terraformDocsPathsSpec[pathSpec].parentDir}/${dir}?ref=${item.version}`;
-};
-
-const generateTFDocsURL = (item: TerraformElement) => {
-  const { provider, name, type } = item;
-
-  return `https://registry.terraform.io/providers/${provider.owner}/${provider.name}/${provider.version?.replace(
-    "v",
-    "",
-  )}/docs/${type}s/${name}`;
-};
 
 function DetailDoc(props: { item: TerraformElement }) {
   const rawDocUrl = props.item.rawDocUrl || "";
@@ -294,7 +240,7 @@ const fetchAPIs = async (providerNames: string[]) => {
       },
     ])
     .map((p) =>
-      fetch(generateTFGitHubURL(p.provider, p.type))
+      fetch(getTerraformGitHubContentsURL(p.provider, p.type))
         .then((res) => res.json())
         .then((data) =>
           (data as GitHubFileInfo[]).map((item: GitHubFileInfo) => {
