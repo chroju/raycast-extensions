@@ -8,7 +8,7 @@ const cacheKey = "chroju-terraform-docs-cache";
 const cacheTTL = 1000 * 60 * 60 * 24; // 1 day
 
 interface cacheStructure {
-  data: TFElement[];
+  data: TerraformElement[];
   providers: string;
   expiresAt?: number;
 }
@@ -19,14 +19,14 @@ interface GitHubLinks {
   html: string;
 }
 
-enum TFElementType {
+enum TerraformElementType {
   Resource = "Resource",
   DataSource = "Data Source",
 }
 
-const icons: { [key in TFElementType]: Image.ImageLike } = {
-  [TFElementType.Resource]: { source: Icon.Box, tintColor: Color.Purple },
-  [TFElementType.DataSource]: { source: Icon.Box, tintColor: Color.Orange },
+const icons: { [key in TerraformElementType]: Image.ImageLike } = {
+  [TerraformElementType.Resource]: { source: Icon.Box, tintColor: Color.Purple },
+  [TerraformElementType.DataSource]: { source: Icon.Box, tintColor: Color.Orange },
 };
 
 interface GitHubFileInfo {
@@ -53,28 +53,28 @@ interface GitHubTagInfo {
   node_id: string;
 }
 
-interface TFProvider {
+interface TerraformProvider {
   owner: string;
   name: string;
   version?: string;
   isOldDocsPaths: boolean;
 }
 
-interface TFElement {
+interface TerraformElement {
   name: string;
-  type: TFElementType;
-  provider: TFProvider;
+  type: TerraformElementType;
+  provider: TerraformProvider;
   rawDocUrl?: string;
 }
 
-interface TFDocsPaths {
+interface TerraformDocsPaths {
   parentDir: string;
   resourceDir: string;
   dataSourceDir: string;
   suffix: string;
 }
 
-const tfDocsPathsSpec: { old: TFDocsPaths; new: TFDocsPaths } = {
+const terraformDocsPathsSpec: { old: TerraformDocsPaths; new: TerraformDocsPaths } = {
   old: {
     parentDir: "website/docs",
     resourceDir: "r",
@@ -90,7 +90,7 @@ const tfDocsPathsSpec: { old: TFDocsPaths; new: TFDocsPaths } = {
 };
 
 export default function Command() {
-  const [items, setItems] = useState<TFElement[]>([]);
+  const [items, setItems] = useState<TerraformElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const providerNames = "hashicorp/aws,DataDog/datadog";
@@ -150,7 +150,7 @@ export default function Command() {
               <ActionPanel>
                 <ActionPanel.Section>
                   <Action.Push title="Show Document" icon={Icon.Document} target={<DetailDoc item={item} />} />
-                  <Action.OpenInBrowser title="Open in Browser" url={`${generateTFDocsURL(item).docUrl}`} />
+                  <Action.OpenInBrowser title="Open in Browser" url={`${generateTFDocsURL(item)}`} />
                   <Action.CopyToClipboard
                     title={`Copy ${item.type} Name`}
                     content={`${item.provider.name}_${item.name}`}
@@ -175,33 +175,27 @@ export default function Command() {
   );
 }
 
-const generateTFGitHubURL = (item: TFProvider, type: TFElementType): string => {
+const generateTFGitHubURL = (item: TerraformProvider, type: TerraformElementType): string => {
   const { owner, name, isOldDocsPaths } = item;
   const pathSpec = isOldDocsPaths ? "old" : "new";
   const dir =
-    type === TFElementType.Resource ? tfDocsPathsSpec[pathSpec].resourceDir : tfDocsPathsSpec[pathSpec].dataSourceDir;
+    type === TerraformElementType.Resource
+      ? terraformDocsPathsSpec[pathSpec].resourceDir
+      : terraformDocsPathsSpec[pathSpec].dataSourceDir;
 
-  return `https://api.github.com/repos/${owner}/terraform-provider-${name}/contents/${tfDocsPathsSpec[pathSpec].parentDir}/${dir}?ref=${item.version}`;
+  return `https://api.github.com/repos/${owner}/terraform-provider-${name}/contents/${terraformDocsPathsSpec[pathSpec].parentDir}/${dir}?ref=${item.version}`;
 };
 
-const generateTFDocsURL = (item: TFElement): { rawDocUrl: string; docUrl: string } => {
+const generateTFDocsURL = (item: TerraformElement) => {
   const { provider, name, type } = item;
-  const pathSpec = provider.isOldDocsPaths ? "old" : "new";
-  const dir =
-    type === TFElementType.Resource ? tfDocsPathsSpec[pathSpec].resourceDir : tfDocsPathsSpec[pathSpec].dataSourceDir;
 
-  // gitURL depends on the doc spec i.e old or new
-  const rawDocUrl = `https://raw.githubusercontent.com/${provider.owner}/terraform-provider-${provider.name}/${provider.version}/${tfDocsPathsSpec[pathSpec].parentDir}/${dir}/${name}${tfDocsPathsSpec[pathSpec].suffix}`;
-
-  // registryURL is constant
-  const docUrl = `https://registry.terraform.io/providers/${provider.owner}/${
-    provider.name
-  }/${provider.version?.replace("v", "")}/docs/${type}s/${name}`;
-
-  return { rawDocUrl, docUrl };
+  return `https://registry.terraform.io/providers/${provider.owner}/${provider.name}/${provider.version?.replace(
+    "v",
+    "",
+  )}/docs/${type}s/${name}`;
 };
 
-function DetailDoc(props: { item: TFElement }) {
+function DetailDoc(props: { item: TerraformElement }) {
   const rawDocUrl = props.item.rawDocUrl || "";
   const { isLoading, data } = useFetch(rawDocUrl, {
     keepPreviousData: true,
@@ -217,7 +211,7 @@ function DetailDoc(props: { item: TFElement }) {
   );
 }
 
-const checkIsOldDocsPaths = async (provider: TFProvider) => {
+const checkIsOldDocsPaths = async (provider: TerraformProvider) => {
   const url = `https://api.github.com/repos/${provider.owner}/terraform-provider-${provider.name}/contents/`;
   return fetch(url)
     .then((res) => {
@@ -258,11 +252,11 @@ const fetchAPIs = async (providerNames: string[]) => {
         };
       } catch (error) {
         showToast({ style: Toast.Style.Failure, title: "Failed to fetch versions", message: "fail" });
-        return {} as TFProvider;
+        return {} as TerraformProvider;
       }
     });
     const res = await Promise.all(ch);
-    return res.filter((p) => p !== ({} as TFProvider));
+    return res.filter((p) => p !== ({} as TerraformProvider));
   };
   const providers = await checks(providerNames);
 
@@ -292,11 +286,11 @@ const fetchAPIs = async (providerNames: string[]) => {
     .flatMap((provider) => [
       {
         provider: provider,
-        type: TFElementType.Resource,
+        type: TerraformElementType.Resource,
       },
       {
         provider: provider,
-        type: TFElementType.DataSource,
+        type: TerraformElementType.DataSource,
       },
     ])
     .map((p) =>
@@ -309,7 +303,7 @@ const fetchAPIs = async (providerNames: string[]) => {
               type: p.type,
               provider: p.provider,
               rawDocUrl: item.download_url,
-            } as TFElement;
+            } as TerraformElement;
           }),
         )
         .catch((error) => {
@@ -318,6 +312,6 @@ const fetchAPIs = async (providerNames: string[]) => {
         }),
     );
 
-  const results: TFElement[][] = await Promise.all(fetches);
+  const results: TerraformElement[][] = await Promise.all(fetches);
   return results.flat();
 };
