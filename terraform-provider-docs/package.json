@@ -8,9 +8,9 @@
   "license": "MIT",
   "commands": [
     {
-      "name": "index",
-      "title": "Search Terraform Provider Documents",
-      "description": "Template for showing a static list",
+      "name": "search",
+      "title": "Search Documents",
+      "description": "Search Terraform provider documents.",
       "mode": "view"
     }
   ],
