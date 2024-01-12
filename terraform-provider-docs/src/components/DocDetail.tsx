@@ -1,4 +1,4 @@
-import { Detail } from "@raycast/api";
+import { Detail, showToast, Toast } from "@raycast/api";
 import { useFetch } from "@raycast/utils";
 import { TerraformElement } from "../helpers/terraform";
 
@@ -10,6 +10,10 @@ export function DocDetail({ element }: DocDetailProps) {
   const rawDocUrl = element.rawDocUrl || "";
   const { isLoading, data } = useFetch(rawDocUrl, {
     keepPreviousData: true,
+    onError: (error) => {
+      console.error(error);
+      showToast({ style: Toast.Style.Failure, title: "Failed to get document" });
+    },
   });
 
   return (
