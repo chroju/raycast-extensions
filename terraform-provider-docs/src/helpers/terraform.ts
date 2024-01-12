@@ -24,7 +24,7 @@ interface terraformDocsPaths {
   suffix: string;
 }
 
-const terraformDocsPathsSpec: { old: terraformDocsPaths; new: terraformDocsPaths } = {
+export const terraformDocsPathsSpec: { old: terraformDocsPaths; new: terraformDocsPaths } = {
   old: {
     parentDir: "website/docs",
     resourceDir: "r",
@@ -37,6 +37,13 @@ const terraformDocsPathsSpec: { old: terraformDocsPaths; new: terraformDocsPaths
     dataSourceDir: "data-sources",
     suffix: ".md",
   },
+};
+
+export const getTerraformGitHubContentsParentURL = (item: TerraformProvider): string => {
+  const { owner, name, isOldDocsPaths } = item;
+  const pathSpec = isOldDocsPaths ? "old" : "new";
+
+  return `https://api.github.com/repos/${owner}/terraform-provider-${name}/contents/${terraformDocsPathsSpec[pathSpec].parentDir}/?ref=${item.version}`;
 };
 
 export const getTerraformGitHubContentsURL = (item: TerraformProvider, type: TerraformElementType): string => {
