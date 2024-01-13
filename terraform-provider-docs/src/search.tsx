@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
 import { ActionPanel, Icon, Action, Color, List, Cache, Image, showToast, Toast } from "@raycast/api";
 import { TerraformElement, TerraformElementType, getTerraformDocURL } from "./helpers/terraform";
-import { fetchTerraformElements } from "./api/github";
+import { getTerraformElements, getTerraformProviderFromName } from "./api/github";
 import { DocDetail } from "./components/DocDetail";
+import { usePromise } from "@raycast/utils";
+import { useEffect, useState } from "react";
 
 const cache = new Cache();
 const cacheKey = "chroju-terraform-docs-cache";
@@ -19,55 +20,80 @@ const icons: { [key in TerraformElementType]: Image.ImageLike } = {
   [TerraformElementType.DataSource]: { source: Icon.Box, tintColor: Color.Orange },
 };
 
+const fetchData = async (providerNames: string[]) => {
+  console.log("fetch ...");
+  const providers = Promise.all(
+    providerNames.map(async (p) => {
+      const splitted = p.split("/");
+      return getTerraformProviderFromName(splitted[0], splitted[1]).then((provider) => provider);
+    }),
+  ).catch((error) => {
+    throw error;
+  });
+
+  const data = providers.then(async (providers) => {
+    return Promise.all(
+      providers.map(async (p) => {
+        return getTerraformElements(p).then((elements) => elements);
+      }),
+    ).catch((error) => {
+      throw error;
+    });
+  });
+
+  return data.then((data) => {
+    return data.flat();
+  });
+};
+
 export default function Command() {
-  const [items, setItems] = useState<TerraformElement[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const providerNames = "hashicorp/aws,DataDog/datadog";
-
-  const cachedData = cache.get(cacheKey);
-  const cachedProviders = providerNames;
-
-  const fetchData = async (providerNames: string[]) => {
-    const data = await fetchTerraformElements(providerNames);
-    setItems(data);
-    if (data.length > 0) {
-      cache.set(
-        cacheKey,
-        JSON.stringify({
-          data: data,
-          providers: cachedProviders,
-          expiresAt: Date.now() + cacheTTL,
-        } as cacheStructure),
-      );
-    }
-    setIsLoading(false);
-  };
-
-  const reload = (providerNames: string[]) => {
-    setIsLoading(true);
-    fetchData(providerNames);
-    showToast({ style: Toast.Style.Success, title: "Reloaded", message: "Successfully reloaded" });
-  };
+  const input = "hashicorp/aws,DataDog/datadog";
+  const [data, setData] = useState<TerraformElement[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    if (
-      cachedData &&
-      JSON.parse(cachedData).providers === cachedProviders &&
-      JSON.parse(cachedData).expiresAt > Date.now()
-    ) {
+    const cachedData = cache.get(cacheKey);
+    if (cachedData && JSON.parse(cachedData).providers === input && JSON.parse(cachedData).expiresAt > Date.now()) {
       console.log("cache hit");
-      setItems((JSON.parse(cachedData) as cacheStructure).data);
+      setData((JSON.parse(cachedData) as cacheStructure).data);
       setIsLoading(false);
     } else {
-      fetchData(providerNames.split(","));
+      fetchData(input.split(","))
+        .then((data) => {
+          setData(data);
+          setIsLoading(false);
+          cache.set(cacheKey, JSON.stringify({ data: data, providers: input, expiresAt: Date.now() + cacheTTL }));
+        })
+        .catch((error) => {
+          setIsLoading(false);
+          showToast({ style: Toast.Style.Failure, title: "Failed to load", message: error.message });
+        });
     }
-  }, []);
+  }, [input]);
+
+  const reload = async () => {
+    const toast = await showToast(Toast.Style.Animated, "Reloading...");
+    setIsLoading(true);
+    fetchData(input.split(","))
+      .then((data) => {
+        setData(data);
+        setIsLoading(false);
+        toast.style = Toast.Style.Success;
+        toast.title = "Successfully reloaded";
+        cache.set(cacheKey, JSON.stringify({ data: data, providers: input, expiresAt: Date.now() + cacheTTL }));
+      })
+      .catch((error) => {
+        setIsLoading(false);
+        toast.style = Toast.Style.Failure;
+        toast.title = "Failed to reload";
+        toast.message = error.message;
+      });
+  };
 
   return (
     <List isLoading={isLoading}>
-      {items.length > 0 ? (
-        items.map((item) => (
+      {data && data.length > 0 ? (
+        data.map((item) => (
           <List.Item
             key={item.provider.name + "_" + item.name + "_" + item.type}
             icon={icons[item.type]}
@@ -87,7 +113,7 @@ export default function Command() {
                     content={`${item.provider.name}_${item.name}`}
                     icon={Icon.Clipboard}
                   />
-                  <Action title="Reload" icon={Icon.Repeat} onAction={() => reload(providerNames.split(","))} />
+                  <Action title="Reload Latest Providers" icon={Icon.Repeat} onAction={reload} />
                 </ActionPanel.Section>
               </ActionPanel>
             }
@@ -97,7 +123,7 @@ export default function Command() {
         <List.EmptyView
           actions={
             <ActionPanel>
-              <Action title="Reload" icon={Icon.Repeat} onAction={() => reload(providerNames.split(","))} />
+              <Action title="Reload Latest Providers" icon={Icon.Repeat} onAction={reload} />
             </ActionPanel>
           }
         />

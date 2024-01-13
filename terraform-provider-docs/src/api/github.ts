@@ -5,9 +5,8 @@ import {
   TerraformElementType,
   TerraformProvider,
 } from "../helpers/terraform";
-import { getTerraformGitHubContentsURL, terraformDocsPathsSpec } from "../helpers/terraform";
+import { terraformDocsPathsSpec } from "../helpers/terraform";
 import fetch from "node-fetch";
-import { get } from "http";
 
 interface GitHubLinks {
   self: string;
@@ -55,101 +54,77 @@ interface GitHubTagInfo {
   node_id: string;
 }
 
-export async function fetchTerraformElements(providerNames: string[]) {
-  const checks = async (providers: string[]) => {
-    const ch = providers.map(async (p) => {
-      try {
-        const isOldDocsPaths = await checkIsOldDocsPaths({
-          owner: p.split("/")[0],
-          name: p.split("/")[1],
-          isOldDocsPaths: false,
-        });
-        return {
-          owner: p.split("/")[0],
-          name: p.split("/")[1],
-          isOldDocsPaths: isOldDocsPaths,
-        };
-      } catch (error) {
-        showToast({ style: Toast.Style.Failure, title: "Failed to fetch versions", message: "fail" });
-        return {} as TerraformProvider;
-      }
-    });
-    const res = await Promise.all(ch);
-    return res.filter((p) => p !== ({} as TerraformProvider));
+export async function getTerraformProviderFromName(owner: string, name: string) {
+  const provider: TerraformProvider = {
+    owner: owner,
+    name: name,
+    version: "",
+    isOldDocsPaths: false,
   };
-  const providers = await checks(providerNames);
+  return checkIsOldDocsPaths(provider)
+    .then((isOldDocsPaths) => {
+      provider.isOldDocsPaths = isOldDocsPaths;
+      const url = `https://api.github.com/repos/${provider.owner}/terraform-provider-${provider.name}/tags`;
+      return fetch(url);
+    })
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error(`${res.status} ${res.statusText}`);
+      }
+      return res.json();
+    })
+    .then((data) => {
+      const latestTag = (data as GitHubTagInfo[])[0];
+      provider.version = latestTag.name;
+      return provider;
+    })
+    .catch((error) => {
+      throw new Error(error.message);
+    });
+}
 
-  const fetchVersions = providers.map(async (provider) => {
-    const url = `https://api.github.com/repos/${provider.owner}/terraform-provider-${provider.name}/tags`;
-    return fetch(url)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`${res.status} ${res.statusText}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        const latestTag = (data as GitHubTagInfo[])[0];
-        console.log(latestTag);
-        provider.version = latestTag.name;
-        return provider;
-      })
-      .catch((error) => {
-        showToast({ style: Toast.Style.Failure, title: "Failed to fetch versions", message: error.message });
-        return provider;
-      });
-  });
-  await Promise.all(fetchVersions);
-
-  const fetchShas = providers.flatMap(async (provider) => {
-    return fetch(getTerraformGitHubContentsParentURL(provider))
-      .then((res) => res.json())
-      .then((data) => {
-        const pathSpec = provider.isOldDocsPaths ? "old" : "new";
-        const resourceSha = (data as GitHubFileInfo[]).find(
-          (item) => item.name === terraformDocsPathsSpec[pathSpec].resourceDir,
-        )?.sha;
-        const dataSha = (data as GitHubFileInfo[]).find(
-          (item) => item.name === terraformDocsPathsSpec[pathSpec].resourceDir,
-        )?.sha;
-        return [
-          {
-            provider: provider,
-            type: TerraformElementType.Resource,
-            sha: resourceSha,
-          },
-          {
-            provider: provider,
-            type: TerraformElementType.DataSource,
-            sha: dataSha,
-          },
-        ];
-      });
-  });
-  const fetchSources = (await Promise.all(fetchShas)).flat();
-
-  const fetches = fetchSources.map((p) =>
-    fetch(getGitHubTreeURL(p.provider, p.sha || ""))
-      .then((res) => res.json())
-      .then((data) =>
-        (data as GitHubTreeResponse).tree.map((item: GitHubTreeInfo) => {
-          const ret = {
-            name: item.path.split(".")[0],
-            type: p.type,
-            provider: p.provider,
-          } as TerraformElement;
-          ret.rawDocUrl = getRawDocURL(ret);
-          return ret;
+export async function getTerraformElements(provider: TerraformProvider) {
+  const pathSpec = provider.isOldDocsPaths ? "old" : "new";
+  const shaMap = await fetch(getTerraformGitHubContentsParentURL(provider))
+    .then((res) => res.json())
+    .then((data) => {
+      const resourceSha = (data as GitHubFileInfo[]).find(
+        (item) => item.name === terraformDocsPathsSpec[pathSpec].resourceDir,
+      )?.sha;
+      const dataSha = (data as GitHubFileInfo[]).find(
+        (item) => item.name === terraformDocsPathsSpec[pathSpec].dataSourceDir,
+      )?.sha;
+      return [
+        {
+          type: TerraformElementType.Resource,
+          sha: resourceSha || "",
+        },
+        {
+          type: TerraformElementType.DataSource,
+          sha: dataSha || "",
+        },
+      ];
+    });
+  const elements = shaMap.map(
+    async (shaInfo) =>
+      await fetch(getGitHubTreeURL(provider, shaInfo.sha))
+        .then((res) => res.json())
+        .then((data) =>
+          (data as GitHubTreeResponse).tree.map((item: GitHubTreeInfo) => {
+            const ret = {
+              name: item.path.split(".")[0],
+              type: shaInfo.type,
+              provider: provider,
+            } as TerraformElement;
+            ret.rawDocUrl = getRawDocURL(ret);
+            return ret;
+          }),
+        )
+        .catch((error) => {
+          throw new Error(error.message);
         }),
-      )
-      .catch((error) => {
-        console.error(error);
-        return [];
-      }),
   );
-
-  const results: TerraformElement[][] = await Promise.all(fetches);
-  return results.flat();
+  return (await Promise.all(elements)).flat();
 }
 
 const checkIsOldDocsPaths = async (provider: TerraformProvider) => {
