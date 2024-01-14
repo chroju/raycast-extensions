@@ -3,7 +3,7 @@
   "name": "terraform-provider-docs",
   "title": "Terraform Provider Documents",
   "description": "",
-  "icon": "command-icon.png",
+  "icon": "extension-icon.png",
   "author": "chroju",
   "license": "MIT",
   "commands": [
