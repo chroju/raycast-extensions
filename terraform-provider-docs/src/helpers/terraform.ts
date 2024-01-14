@@ -39,24 +39,6 @@ export const terraformDocsPathsSpec: { old: terraformDocsPaths; new: terraformDo
   },
 };
 
-export const getTerraformGitHubContentsParentURL = (item: TerraformProvider): string => {
-  const { owner, name, isOldDocsPaths } = item;
-  const pathSpec = isOldDocsPaths ? "old" : "new";
-
-  return `https://api.github.com/repos/${owner}/terraform-provider-${name}/contents/${terraformDocsPathsSpec[pathSpec].parentDir}/?ref=${item.version}`;
-};
-
-export const getTerraformGitHubContentsURL = (item: TerraformProvider, type: TerraformElementType): string => {
-  const { owner, name, isOldDocsPaths } = item;
-  const pathSpec = isOldDocsPaths ? "old" : "new";
-  const dir =
-    type === TerraformElementType.Resource
-      ? terraformDocsPathsSpec[pathSpec].resourceDir
-      : terraformDocsPathsSpec[pathSpec].dataSourceDir;
-
-  return `https://api.github.com/repos/${owner}/terraform-provider-${name}/contents/${terraformDocsPathsSpec[pathSpec].parentDir}/${dir}?ref=${item.version}`;
-};
-
 export const getTerraformDocURL = (item: TerraformElement) => {
   const { provider, name, type } = item;
 

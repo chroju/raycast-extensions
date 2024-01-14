@@ -2,7 +2,7 @@ import { ActionPanel, Icon, Action, Color, List, Cache, Image, showToast, Toast 
 import { TerraformElement, TerraformElementType, getTerraformDocURL } from "./helpers/terraform";
 import { getTerraformElements, getTerraformProviderFromName } from "./api/github";
 import { DocDetail } from "./components/DocDetail";
-import { usePromise } from "@raycast/utils";
+import { CommonActionPanelSection } from "./components/CommonActionPanelSection";
 import { useEffect, useState } from "react";
 
 const cache = new Cache();
@@ -94,40 +94,51 @@ export default function Command() {
     <List isLoading={isLoading}>
       {data && data.length > 0 ? (
         data.map((item) => (
-          <List.Item
-            key={item.provider.name + "_" + item.name + "_" + item.type}
-            icon={icons[item.type]}
-            title={item.provider.name + "_" + item.name}
-            subtitle={item.type}
-            accessories={[
-              { tag: { value: `${item.provider.version}` } },
-              { text: `${item.provider.owner}/${item.provider.name}` },
-            ]}
-            actions={
-              <ActionPanel>
-                <ActionPanel.Section>
-                  <Action.Push title="Show Document" icon={Icon.Document} target={<DocDetail element={item} />} />
-                  <Action.OpenInBrowser title="Open in Browser" url={`${getTerraformDocURL(item)}`} />
-                  <Action.CopyToClipboard
-                    title={`Copy ${item.type} Name`}
-                    content={`${item.provider.name}_${item.name}`}
-                    icon={Icon.Clipboard}
-                  />
-                  <Action title="Reload Latest Providers" icon={Icon.Repeat} onAction={reload} />
-                </ActionPanel.Section>
-              </ActionPanel>
-            }
-          />
+          <SearchListItem key={`${item.provider.name}_${item.name}_${item.type}`} item={item} reload={reload} />
         ))
       ) : (
-        <List.EmptyView
-          actions={
-            <ActionPanel>
-              <Action title="Reload Latest Providers" icon={Icon.Repeat} onAction={reload} />
-            </ActionPanel>
-          }
-        />
+        <List.EmptyView actions={<CommonActionPanelSection reload={reload} />} />
       )}
     </List>
+  );
+}
+
+function SearchActionPanel(props: { item: TerraformElement; reload: () => void }) {
+  const item = props.item;
+  return (
+    <ActionPanel title={`${item.provider.name}_${item.name}`}>
+      <ActionPanel.Section>
+        <Action.Push title="Show Document" icon={Icon.Document} target={<DocDetail element={item} />} />
+        <Action.OpenInBrowser title="Open in Browser" url={`${getTerraformDocURL(item)}`} />
+        <Action.CopyToClipboard
+          title={`Copy ${item.type} Name`}
+          content={`${item.provider.name}_${item.name}`}
+          icon={Icon.Clipboard}
+        />
+        <Action.CopyToClipboard
+          title={`Copy Document URL`}
+          content={`${getTerraformDocURL(item)}`}
+          icon={Icon.Clipboard}
+        />
+      </ActionPanel.Section>
+      <CommonActionPanelSection reload={props.reload} />
+    </ActionPanel>
+  );
+}
+
+function SearchListItem(props: { item: TerraformElement; reload: () => void }) {
+  const item = props.item;
+  return (
+    <List.Item
+      title={`${item.provider.name}_${item.name}`}
+      icon={icons[item.type]}
+      subtitle={item.type}
+      keywords={[`${item.provider.name}_${item.name}`, item.type]}
+      accessories={[
+        { tag: { value: `${item.provider.version}` } },
+        { text: `${item.provider.owner}/${item.provider.name}` },
+      ]}
+      actions={<SearchActionPanel item={item} reload={props.reload} />}
+    />
   );
 }

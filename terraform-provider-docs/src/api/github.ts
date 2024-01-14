@@ -1,10 +1,5 @@
 import { showToast, Toast } from "@raycast/api";
-import {
-  getTerraformGitHubContentsParentURL,
-  TerraformElement,
-  TerraformElementType,
-  TerraformProvider,
-} from "../helpers/terraform";
+import { TerraformElement, TerraformElementType, TerraformProvider } from "../helpers/terraform";
 import { terraformDocsPathsSpec } from "../helpers/terraform";
 import fetch from "node-fetch";
 
@@ -163,4 +158,22 @@ const getRawDocURL = (item: TerraformElement) => {
       ? terraformDocsPathsSpec[pathSpec].resourceDir
       : terraformDocsPathsSpec[pathSpec].dataSourceDir;
   return `https://raw.githubusercontent.com/${item.provider.owner}/terraform-provider-${item.provider.name}/${item.provider.version}/${terraformDocsPathsSpec[pathSpec].parentDir}/${dir}/${item.name}${terraformDocsPathsSpec[pathSpec].suffix}`;
+};
+
+export const getTerraformGitHubContentsParentURL = (item: TerraformProvider): string => {
+  const { owner, name, isOldDocsPaths } = item;
+  const pathSpec = isOldDocsPaths ? "old" : "new";
+
+  return `https://api.github.com/repos/${owner}/terraform-provider-${name}/contents/${terraformDocsPathsSpec[pathSpec].parentDir}/?ref=${item.version}`;
+};
+
+export const getTerraformGitHubContentsURL = (item: TerraformProvider, type: TerraformElementType): string => {
+  const { owner, name, isOldDocsPaths } = item;
+  const pathSpec = isOldDocsPaths ? "old" : "new";
+  const dir =
+    type === TerraformElementType.Resource
+      ? terraformDocsPathsSpec[pathSpec].resourceDir
+      : terraformDocsPathsSpec[pathSpec].dataSourceDir;
+
+  return `https://api.github.com/repos/${owner}/terraform-provider-${name}/contents/${terraformDocsPathsSpec[pathSpec].parentDir}/${dir}?ref=${item.version}`;
 };
