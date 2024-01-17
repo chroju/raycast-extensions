@@ -93,9 +93,7 @@ export default function Command() {
   return (
     <List isLoading={isLoading}>
       {data && data.length > 0 ? (
-        data.map((item) => (
-          <SearchListItem key={`${item.provider.name}_${item.name}_${item.type}`} item={item} reload={reload} />
-        ))
+        <SearchListItems items={data} listTitle="Found elements" reload={reload} />
       ) : (
         <List.EmptyView actions={<CommonActionPanelSection reload={reload} />} />
       )}
@@ -126,19 +124,24 @@ function SearchActionPanel(props: { item: TerraformElement; reload: () => void }
   );
 }
 
-function SearchListItem(props: { item: TerraformElement; reload: () => void }) {
-  const item = props.item;
+function SearchListItems(props: { items: TerraformElement[]; listTitle: string; reload: () => void }) {
+  const items = props.items;
   return (
-    <List.Item
-      title={`${item.provider.name}_${item.name}`}
-      icon={icons[item.type]}
-      subtitle={item.type}
-      keywords={[`${item.provider.name}_${item.name}`, item.type]}
-      accessories={[
-        { tag: { value: `${item.provider.version}` } },
-        { text: `${item.provider.owner}/${item.provider.name}` },
-      ]}
-      actions={<SearchActionPanel item={item} reload={props.reload} />}
-    />
+    <List.Section title={props.listTitle}>
+      {items.map((item) => (
+        <List.Item
+          key={`${item.provider.name}_${item.name}_${item.type}`}
+          title={`${item.provider.name}_${item.name}`}
+          icon={icons[item.type]}
+          subtitle={item.type}
+          keywords={[`${item.provider.name}_${item.name}`, item.type]}
+          accessories={[
+            { tag: { value: `${item.provider.version}` } },
+            { text: `${item.provider.owner}/${item.provider.name}` },
+          ]}
+          actions={<SearchActionPanel item={item} reload={props.reload} />}
+        />
+      ))}
+    </List.Section>
   );
 }
