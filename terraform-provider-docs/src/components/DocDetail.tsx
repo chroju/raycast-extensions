@@ -1,6 +1,7 @@
 import { Detail, showToast, Toast } from "@raycast/api";
 import { useFetch } from "@raycast/utils";
 import { TerraformElement } from "../helpers/terraform";
+import { AddRecentView } from "../helpers/recentViews";
 
 type DocDetailProps = {
   element: TerraformElement;
@@ -15,6 +16,7 @@ export function DocDetail({ element }: DocDetailProps) {
       showToast({ style: Toast.Style.Failure, title: "Failed to get document" });
     },
   });
+  AddRecentView(element);
 
   return (
     <Detail

@@ -4,6 +4,7 @@ import { getTerraformElements, getTerraformProviderFromName } from "./api/github
 import { DocDetail } from "./components/DocDetail";
 import { CommonActionPanelSection } from "./components/CommonActionPanelSection";
 import { useEffect, useState } from "react";
+import { AddRecentView, GetRecentViews } from "./helpers/recentViews";
 
 const cache = new Cache();
 const cacheKey = "chroju-terraform-docs-cache";
@@ -90,10 +91,15 @@ export default function Command() {
       });
   };
 
+  const recentViews = GetRecentViews();
+
   return (
     <List isLoading={isLoading}>
+      {recentViews && recentViews.length > 0 && (
+        <SearchListItems items={recentViews} listTitle="Recent Viewed Elements" reload={reload} />
+      )}
       {data && data.length > 0 ? (
-        <SearchListItems items={data} listTitle="Found elements" reload={reload} />
+        <SearchListItems items={data} listTitle="All Elements" reload={reload} />
       ) : (
         <List.EmptyView actions={<CommonActionPanelSection reload={reload} />} />
       )}
@@ -107,7 +113,11 @@ function SearchActionPanel(props: { item: TerraformElement; reload: () => void }
     <ActionPanel title={`${item.provider.name}_${item.name}`}>
       <ActionPanel.Section>
         <Action.Push title="Show Document" icon={Icon.Document} target={<DocDetail element={item} />} />
-        <Action.OpenInBrowser title="Open in Browser" url={`${getTerraformDocURL(item)}`} />
+        <Action.OpenInBrowser
+          title="Open in Browser"
+          url={`${getTerraformDocURL(item)}`}
+          onOpen={() => AddRecentView(item)}
+        />
         <Action.CopyToClipboard
           title={`Copy ${item.type} Name`}
           content={`${item.provider.name}_${item.name}`}
