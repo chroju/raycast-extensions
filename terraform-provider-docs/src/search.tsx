@@ -9,7 +9,6 @@ import {
   showToast,
   Toast,
   getPreferenceValues,
-  openExtensionPreferences,
 } from "@raycast/api";
 import { TerraformElement, TerraformElementType, getTerraformDocURL } from "./helpers/terraform";
 import { getTerraformElements, getTerraformProviderFromName } from "./api/github";
@@ -17,11 +16,9 @@ import { DocDetail } from "./components/DocDetail";
 import { CommonActionPanelSection } from "./components/CommonActionPanelSection";
 import { useEffect, useState } from "react";
 import { AddRecentView, GetRecentViews } from "./helpers/recentViews";
-import { GetProviders } from "./helpers/providerStorage";
 
 const cache = new Cache();
 const cacheKey = "chroju-terraform-docs-cache";
-const cacheProvidersKey = "chroju-terraform-docs-cache-providers";
 const cacheTTL = 1000 * 60 * 60 * 24; // 1 day
 
 interface Preferences {
