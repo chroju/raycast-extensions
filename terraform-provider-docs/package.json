@@ -14,6 +14,16 @@
       "mode": "view"
     }
   ],
+  "preferences": [
+    {
+      "name": "providers",
+      "title": "Providers (comma separated)",
+      "description": "Terraform providers to search separated with comma.",
+      "type": "textfield",
+      "required": true,
+      "default": "hashicorp/aws,hashicorp/google"
+    }
+  ],
   "dependencies": {
     "@raycast/api": "^1.64.4",
     "@raycast/utils": "^1.10.1",

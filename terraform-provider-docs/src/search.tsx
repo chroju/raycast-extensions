@@ -1,14 +1,32 @@
-import { ActionPanel, Icon, Action, Color, List, Cache, Image, showToast, Toast } from "@raycast/api";
+import {
+  ActionPanel,
+  Icon,
+  Action,
+  Color,
+  List,
+  Cache,
+  Image,
+  showToast,
+  Toast,
+  getPreferenceValues,
+  openExtensionPreferences,
+} from "@raycast/api";
 import { TerraformElement, TerraformElementType, getTerraformDocURL } from "./helpers/terraform";
 import { getTerraformElements, getTerraformProviderFromName } from "./api/github";
 import { DocDetail } from "./components/DocDetail";
 import { CommonActionPanelSection } from "./components/CommonActionPanelSection";
 import { useEffect, useState } from "react";
 import { AddRecentView, GetRecentViews } from "./helpers/recentViews";
+import { GetProviders } from "./helpers/providerStorage";
 
 const cache = new Cache();
 const cacheKey = "chroju-terraform-docs-cache";
+const cacheProvidersKey = "chroju-terraform-docs-cache-providers";
 const cacheTTL = 1000 * 60 * 60 * 24; // 1 day
+
+interface Preferences {
+  providers: string;
+}
 
 interface cacheStructure {
   data: TerraformElement[];
@@ -22,11 +40,18 @@ const icons: { [key in TerraformElementType]: Image.ImageLike } = {
 };
 
 const fetchData = async (providerNames: string[]) => {
+  if (providerNames.length === 0 || providerNames[0] === "") {
+    return [];
+  }
   console.log("fetch ...");
   const providers = Promise.all(
     providerNames.map(async (p) => {
       const splitted = p.split("/");
-      return getTerraformProviderFromName(splitted[0], splitted[1]).then((provider) => provider);
+      return getTerraformProviderFromName(splitted[0], splitted[1])
+        .then((provider) => provider)
+        .catch((error) => {
+          throw new Error(`${p}: ${error}`);
+        });
     }),
   ).catch((error) => {
     throw error;
@@ -35,7 +60,11 @@ const fetchData = async (providerNames: string[]) => {
   const data = providers.then(async (providers) => {
     return Promise.all(
       providers.map(async (p) => {
-        return getTerraformElements(p).then((elements) => elements);
+        return getTerraformElements(p)
+          .then((elements) => elements)
+          .catch((error) => {
+            throw new Error(`${p.owner}/${p.name}: ${error}`);
+          });
       }),
     ).catch((error) => {
       throw error;
@@ -48,13 +77,19 @@ const fetchData = async (providerNames: string[]) => {
 };
 
 export default function Command() {
-  const input = "hashicorp/aws,DataDog/datadog";
+  const input = getPreferenceValues<Preferences>().providers;
   const [data, setData] = useState<TerraformElement[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const cachedData = cache.get(cacheKey);
-    if (cachedData && JSON.parse(cachedData).providers === input && JSON.parse(cachedData).expiresAt > Date.now()) {
+    if (input === "") {
+      setIsLoading(false);
+    } else if (
+      cachedData &&
+      JSON.parse(cachedData).providers === input &&
+      JSON.parse(cachedData).expiresAt > Date.now()
+    ) {
       console.log("cache hit");
       setData((JSON.parse(cachedData) as cacheStructure).data);
       setIsLoading(false);
@@ -95,13 +130,24 @@ export default function Command() {
 
   return (
     <List isLoading={isLoading}>
-      {recentViews && recentViews.length > 0 && (
-        <SearchListItems items={recentViews} listTitle="Recent Viewed Elements" reload={reload} />
-      )}
       {data && data.length > 0 ? (
-        <SearchListItems items={data} listTitle="All Elements" reload={reload} />
+        <>
+          {recentViews && recentViews.length > 0 && (
+            <SearchListItems items={recentViews} listTitle="Recent Viewed" reload={reload} />
+          )}
+          <SearchListItems items={data} listTitle="All" reload={reload} />
+        </>
       ) : (
-        <List.EmptyView actions={<CommonActionPanelSection reload={reload} />} />
+        <List.EmptyView
+          title="No Documents Found"
+          description="Please check your provider settings or try again later."
+          icon={Icon.XMarkTopRightSquare}
+          actions={
+            <ActionPanel>
+              <CommonActionPanelSection reload={reload} />
+            </ActionPanel>
+          }
+        />
       )}
     </List>
   );
