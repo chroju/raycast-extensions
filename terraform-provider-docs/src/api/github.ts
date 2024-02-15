@@ -100,26 +100,29 @@ export async function getTerraformElements(provider: TerraformProvider) {
         },
       ];
     });
-  const elements = shaMap.map(
-    async (shaInfo) =>
-      await fetch(getGitHubTreeURL(provider, shaInfo.sha))
-        .then((res) => res.json())
-        .then((data) =>
-          (data as GitHubTreeResponse).tree.map((item: GitHubTreeInfo) => {
-            const ret = {
-              name: item.path.split(".")[0],
-              type: shaInfo.type,
-              provider: provider,
-            } as TerraformElement;
-            ret.rawDocUrl = getRawDocURL(ret);
-            return ret;
-          }),
-        )
-        .catch((error) => {
-          throw new Error(error.message);
+
+  const elements = shaMap.map(async (shaInfo) => {
+    if (shaInfo.sha === "") {
+      return {} as TerraformElement;
+    }
+    return await fetch(getGitHubTreeURL(provider, shaInfo.sha))
+      .then((res) => res.json())
+      .then((data) =>
+        (data as GitHubTreeResponse).tree.map((item: GitHubTreeInfo) => {
+          const ret = {
+            name: item.path.split(".")[0],
+            type: shaInfo.type,
+            provider: provider,
+          } as TerraformElement;
+          ret.rawDocUrl = getRawDocURL(ret);
+          return ret;
         }),
-  );
-  return (await Promise.all(elements)).flat();
+      )
+      .catch((error) => {
+        throw new Error(error.message);
+      });
+  });
+  return (await Promise.all(elements)).flat().filter((item) => Object.keys(item).length !== 0);
 }
 
 const checkIsOldDocsPaths = async (provider: TerraformProvider) => {
