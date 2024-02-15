@@ -45,5 +45,5 @@ export const getTerraformDocURL = (item: TerraformElement) => {
   return `https://registry.terraform.io/providers/${provider.owner}/${provider.name}/${provider.version?.replace(
     "v",
     "",
-  )}/docs/${type}s/${name}`;
+  )}/docs/${type.toLowerCase().replace(" ", "-")}s/${name}`;
 };
