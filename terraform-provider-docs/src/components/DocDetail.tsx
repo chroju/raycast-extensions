@@ -1,6 +1,6 @@
-import { Detail, showToast, Toast } from "@raycast/api";
+import { Action, Detail, showToast, Toast, ActionPanel } from "@raycast/api";
 import { useFetch } from "@raycast/utils";
-import { TerraformElement } from "../helpers/terraform";
+import { TerraformElement, getTerraformDocURL } from "../helpers/terraform";
 import { AddRecentView } from "../helpers/recentViews";
 
 type DocDetailProps = {
@@ -24,6 +24,15 @@ export function DocDetail({ element }: DocDetailProps) {
       // remove frontmatter
       markdown={((data as string) || "").replace(/---[\s\S]*?---\n/g, "")}
       navigationTitle={`${element.provider.name}_${element.name}`}
+      actions={
+        <ActionPanel>
+          <Action.OpenInBrowser
+            title="Open in Browser"
+            url={`${getTerraformDocURL(element)}`}
+            onOpen={() => AddRecentView(element)}
+          />
+        </ActionPanel>
+      }
     />
   );
 }
